@@ -5,14 +5,13 @@
 #define MCB_SIZE            (10240)
 #endif
 
-#define BLOCK_NAME_LEN_MAX  (50)
+#define BLOCK_NAME_LEN_MAX  (10)
 
 struct MemoryBlockList
 {
-    char m_pchName[BLOCK_NAME_LEN_MAX];
-    void * m_pvAddress;
+    const char * m_pchName;
     unsigned long m_ulSize;
-    struct MemoryBlockList * m_pstNest;
+    struct MemoryBlockList * m_pstNext;
 }
 
 #endif
