@@ -1,9 +1,12 @@
 /*
 chlachof@126.com
 2015.7.30
+内存管理模块，创建，释放，碎片整理，展示
 */
-#include "mMemoryControllerBlock.h"
 #include "stdlib.h"
+#include "string.h"
+#include "mMemoryControllerBlock.h"
+
 
 const char          g_pchFree[5] = "free";
 const char          g_pchNA[4] = "N/A";
@@ -12,7 +15,7 @@ union MemoryHeap    g_unHeap;
 struct MemoryBlockList * g_pstMemoryBlock = (struct MemoryBlockList *)g_unHeap.pucMCB;
 
 /*
-函数功能：同malloc(size)，增加name参数，用于在shell中展示僵尸碎片，当然不使用名字传入null也可以，默认名字为"N/A"
+函数功能：同malloc(size)，增加name参数，用于在shell中展示僵尸碎片，当然不使用名字传入null也可以，默认名字为"N/A"，注意：不要取名为"free"，以免混淆
 输入：内存块名字(char *)，内存块大小(unsigned long)
 返回：内存块地址(void *)
 */
@@ -78,9 +81,12 @@ void * mMalloc (char * pchName, unsigned long ulSize)
         return NULL;
     }
     
+    /*
+    空闲大于2倍的结构体大小则断链分割成两个内存块，否则直接占有这个内存块
+    */
     if(pstMemoryInsert->m_ulSize > (ulSize + 2*sizeof(struct MemoryBlockList)))
     {
-        pstMemoryTemp = (struct MemoryBlockList *)((char *)pstMemoryInsert + pstMemoryInsert->m_ulSize - ulSize);
+        pstMemoryTemp = (struct MemoryBlockList *)((unsigned long *)(pstMemoryInsert) + ((pstMemoryInsert->m_ulSize - ulSize) >> MCB_ALIGNMENT_DIVBIT));
         pstMemoryTemp->m_ulSize = ulSize;
         pstMemoryTemp->m_pstNext = pstMemoryInsert->m_pstNext;
         
@@ -102,7 +108,7 @@ void * mMalloc (char * pchName, unsigned long ulSize)
     }
     
     
-    return ((void *)((char *)pstMemoryTemp + sizeof(struct MemoryBlockList)));
+    return (void *)((unsigned long *)(pstMemoryTemp) + (sizeof(struct MemoryBlockList) >> MCB_ALIGNMENT_DIVBIT));
 }
 
 /*
@@ -113,7 +119,8 @@ void * mMalloc (char * pchName, unsigned long ulSize)
 void mFree (void * pvAddress)
 {
     struct MemoryBlockList * pstMemoryTemp = NULL;
-    struct MemoryBlockList * pstMemoryTempPrv = NULL;
+    struct MemoryBlockList * pstMemoryTempPrev = NULL;
+    struct MemoryBlockList * pstMemoryTempNext = NULL;
     
     pstMemoryTemp = g_pstMemoryBlock;
     
@@ -121,33 +128,83 @@ void mFree (void * pvAddress)
     {
         if(pstMemoryTemp->m_pchName != g_pchFree)
         {
-            if(pvAddress == ((char *)pstMemoryTemp + sizeof(struct MemoryBlockList)))
+            if(pvAddress == ((unsigned long *)(pstMemoryTemp) + (sizeof(struct MemoryBlockList) >> MCB_ALIGNMENT_DIVBIT)))
             {
-                if(pstMemoryTempPrv->m_pchName == g_pchFree)
+                if(pstMemoryTemp->m_pstNext != NULL)
                 {
-                    pstMemoryTempPrv->m_pstNext = pstMemoryTemp->m_pstNext;
-                    pstMemoryTempPrv->m_ulSize += pstMemoryTemp->m_ulSize + sizeof(struct MemoryBlockList);
+                    pstMemoryTempNext = pstMemoryTemp->m_pstNext;
                 }
-                else 
+                
+                pstMemoryTemp->m_pchName = g_pchFree;
+                
+                /*
+                前一个内存块为free
+                */
+                if(pstMemoryTempNext->m_pchName == g_pchFree)
                 {
-                    pstMemoryTemp->m_pchName = g_pchFree;
+                    pstMemoryTemp->m_pstNext = pstMemoryTempNext->m_pstNext;
+                    pstMemoryTemp->m_ulSize += pstMemoryTempNext->m_ulSize + sizeof(struct MemoryBlockList);
+                }
+                
+                /*
+                后一个内存块为free
+                */
+                if(pstMemoryTempPrev->m_pchName == g_pchFree)
+                {
+                    pstMemoryTempPrev->m_pstNext = pstMemoryTemp->m_pstNext;
+                    pstMemoryTempPrev->m_ulSize += pstMemoryTemp->m_ulSize + sizeof(struct MemoryBlockList);
                 }
                 break;
             }
         }
-        pstMemoryTempPrv = pstMemoryTemp;
+        pstMemoryTempPrev = pstMemoryTemp;
         pstMemoryTemp = pstMemoryTemp->m_pstNext;
     }
 }
 
 /*
-函数功能：整理所有内存块，使所有标记为free的内存块，物理上、逻辑上合在一起
+函数功能：整理所有内存块，使所有标记为free的内存块，物理上、逻辑上合在一起，由于没有MMU支持，其实碎片整理是没法实现的，因为物理地址发生了变化，而传出去的指针没法改变，故不开放接口
 输入：无
 返回：无
 */
 void mDefrag (void)
 {
+    struct MemoryBlockList * pstMemoryTemp = NULL;
+    struct MemoryBlockList * pstMemoryTempPrev = NULL;
+    struct MemoryBlockList * pstMemoryTempNext = NULL;
     
+    pstMemoryTemp = g_pstMemoryBlock;
+    
+    while(pstMemoryTemp != NULL)
+    {
+        /*
+        如果是free块，则让出自己的物理地址
+        */
+        if(pstMemoryTemp->m_pchName == g_pchFree)
+        {
+            if(pstMemoryTemp->m_pstNext != NULL)
+            {
+                pstMemoryTempNext = pstMemoryTemp->m_pstNext;
+                memcpy(pstMemoryTemp, pstMemoryTempNext, pstMemoryTempNext->m_ulSize);
+            }
+        }
+        
+        /*
+        跳过中间的区域，连接物理地址
+        */
+        if(pstMemoryTempPrev != NULL)
+        {
+            if(pstMemoryTemp != (struct MemoryBlockList *)((unsigned long *)(pstMemoryTempPrev) + ((sizeof(struct MemoryBlockList) + pstMemoryTempPrev->m_ulSize) >> MCB_ALIGNMENT_DIVBIT)))
+            {
+                memcpy((unsigned long *)(pstMemoryTempPrev) + ((sizeof(struct MemoryBlockList) + pstMemoryTempPrev->m_ulSize) >> MCB_ALIGNMENT_DIVBIT), pstMemoryTemp, pstMemoryTemp->m_ulSize);
+                pstMemoryTempPrev->m_pstNext = (struct MemoryBlockList *)((unsigned long *)(pstMemoryTempPrev) + ((sizeof(struct MemoryBlockList) + pstMemoryTempPrev->m_ulSize) >> MCB_ALIGNMENT_DIVBIT));
+                pstMemoryTemp = (struct MemoryBlockList *)((unsigned long *)(pstMemoryTempPrev) + ((sizeof(struct MemoryBlockList) + pstMemoryTempPrev->m_ulSize) >> MCB_ALIGNMENT_DIVBIT));
+
+            }
+        }
+        pstMemoryTempPrev = pstMemoryTemp;
+        pstMemoryTemp = pstMemoryTemp->m_pstNext;
+    }
 }
 
 
