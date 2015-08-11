@@ -1,24 +1,21 @@
+#include "stdlib.h"
 #include "mMemoryControllerBlock.h"
+#include "mScheduler.h"
+
+int test1(void * pvArg)
+{
+    return 1;
+}
 
 int main()
 {
-    char * test1 = (char *)mMalloc("test1", 10);
-    char * test2 = (char *)mMalloc("test2", 20);
-    char * test3 = (char *)mMalloc("test3", 30);
-    char * test4 = (char *)mMalloc("test4", 10);
-    char * test5 = (char *)mMalloc("test5", 20);
-    char * test6 = (char *)mMalloc("test6", 30);
-    char * test7 = (char *)mMalloc("test7", 15);
-    char * test8 = (char *)mMalloc("test8", 25);
-    char * test9 = (char *)mMalloc("test9", 35);
-    char * test10 = (char *)mMalloc("test10", 70);
-    mFree(test2);
-    mFree(test4);
-    mFree(test5);
-    mFree(test3);
-    mFree(test8);
-    char * test11 = (char *)mMalloc("test11", 60);
-    mDefrag();
-    char * test12 = (char *)mMalloc("test12", 60);
+    mRegisterThread(test1, 1, "1", NULL, 10);
+    mRegisterThread(test1, 2, "2", NULL, 10);
+    mRegisterThread(test1, 2, "3", NULL, 10);
+    mRegisterThread(test1, 2, "4", NULL, 10);
+    mRegisterThread(test1, 2, "5", NULL, 10);
+    mRegisterThread(test1, 3, "6", NULL, 10);
+    mRegisterThread(test1, 3, "7", NULL, 10);
+    mRunScheduler();
     return 0;
 }

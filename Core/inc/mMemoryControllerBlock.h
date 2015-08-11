@@ -2,11 +2,11 @@
 #define _M_MCB_
 
 #ifndef MCB_SIZE
-#define MCB_SIZE                (1024)
+#define MCB_SIZE                (1024*10)
 #endif
 
 #define MCB_ALIGNMENT           (4)
-#define MCB_ALIGNMENT_MASK      (MCB_ALIGNMENT - 1)
+#define MCB_ALIGNMENT_MASK      (3)
 #define MCB_ALIGNMENT_DIVBIT    (2)
 
 struct MemoryBlockList

@@ -8,11 +8,11 @@ chlachof@126.com
 #include "mMemoryControllerBlock.h"
 
 
-const char          g_pchFree[5] = "free";
-const char          g_pchNA[4] = "N/A";
-union MemoryHeap    g_unHeap;
+static const char               g_pchFree[5] = "free";
+static const char               g_pchNA[4] = "N/A";
+static union MemoryHeap         g_unHeap;
 
-struct MemoryBlockList * g_pstMemoryBlock = (struct MemoryBlockList *)g_unHeap.pucMCB;
+static struct MemoryBlockList * g_pstMemoryBlock = (struct MemoryBlockList *)g_unHeap.pucMCB;
 
 /*
 函数功能：同malloc(size)，增加name参数，用于在shell中展示僵尸碎片，当然不使用名字传入null也可以，默认名字为"N/A"，注意：不要取名为"free"，以免混淆
