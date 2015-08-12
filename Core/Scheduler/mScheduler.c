@@ -249,3 +249,12 @@ void mInterruptSchedulerTimer1Ms (void)
         }
     }
 }
+
+#ifdef _M_SHELL_
+/*
+函数功能：展示所有的线程，这个函数只在shell中使用
+输入：无
+返回：无
+*/
+void mListThread4Shell (void);
+#endif

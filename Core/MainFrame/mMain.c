@@ -1,21 +1,21 @@
 #include "stdlib.h"
 #include "mMemoryControllerBlock.h"
-#include "mScheduler.h"
+#include "mShell.h"
 
-int test1(void * pvArg)
+void test1(unsigned char argc, char ** argv, struct CmdList cmd)
 {
-    return 1;
 }
+
+struct CmdList g_stCmdList[] = 
+{
+    {1, test1, "t1", 0, 2, 0, "", "", NULL},
+    {2, test1, "t2", 0, 3, 0, "", "", NULL},
+    {2, test1, "t3", 4, 4, 0, "", "", NULL},
+};
 
 int main()
 {
-    mRegisterThread(test1, 1, "1", NULL, 10);
-    mRegisterThread(test1, 2, "2", NULL, 10);
-    mRegisterThread(test1, 2, "3", NULL, 10);
-    mRegisterThread(test1, 2, "4", NULL, 10);
-    mRegisterThread(test1, 2, "5", NULL, 10);
-    mRegisterThread(test1, 3, "6", NULL, 10);
-    mRegisterThread(test1, 3, "7", NULL, 10);
-    mRunScheduler();
+    mRegisterCmdList(sizeof(g_stCmdList)/sizeof(struct CmdList), g_stCmdList);
+    mRunCmd();
     return 0;
 }

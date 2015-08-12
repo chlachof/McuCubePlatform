@@ -18,8 +18,8 @@ struct MemoryBlockList
 
 union MemoryHeap
 {
-    volatile unsigned long  ulDummy;
-    unsigned char           pucMCB[MCB_SIZE];
+    volatile unsigned long  m_ulDummy;
+    unsigned char           m_pucMCB[MCB_SIZE];
 };
 
 /*
